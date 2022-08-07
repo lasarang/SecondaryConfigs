@@ -12,7 +12,8 @@ import json
 tiempo=1
 
 # InfluxDB config
-token = 'dTEdjIbGNNTUB7oErdw1QR9S3klwMauHwTJkbfdFKwDx2btao9xWPb4A4AuK-Igwe9crWdWyDQCA07xWyCBGbQ=='
+#token = 'dTEdjIbGNNTUB7oErdw1QR9S3klwMauHwTJkbfdFKwDx2btao9xWPb4A4AuK-Igwe9crWdWyDQCA07xWyCBGbQ=='
+token = 'bJdAFfHIRJOehHexyebAYtZ8Q2ED8dibdco_DiMnDIXHC8L8GHIwUp6FAXI-LekxTTQobg_1zz2VLasfqsg2XA=='
 url_influxDB = 'https://basetsdb-cidis.ngrok.io/'
 org = "ESPOL"
 bucket = "Tester"
