@@ -10,52 +10,6 @@ import random
 import json
 
 tiempo=1
-
-# InfluxDB config
-#token = 'dTEdjIbGNNTUB7oErdw1QR9S3klwMauHwTJkbfdFKwDx2btao9xWPb4A4AuK-Igwe9crWdWyDQCA07xWyCBGbQ=='
-token = 'bJdAFfHIRJOehHexyebAYtZ8Q2ED8dibdco_DiMnDIXHC8L8GHIwUp6FAXI-LekxTTQobg_1zz2VLasfqsg2XA=='
-url_influxDB = 'https://basetsdb-cidis.ngrok.io/'
-org = "ESPOL"
-bucket = "Tester"
-client = InfluxDBClient(url=url_influxDB, token=token, ssl_ca_cert=certifi.where())
-write_api = client.write_api(write_options=SYNCHRONOUS)
-
-#Django server config
-url_server = 'http://server-cidis.ngrok.io/'
-
-#GET RPI info 
-id = 'TEST-0000001'
-response =requests.get(url_server + 'info/sensor/raspberry/' + id,\
-	auth = HTTPBasicAuth('CIDIS-ESPOL', 'c1d1sESPOL2021'))
-
-datos = json.loads(response.content.decode())
-print("GET RPI sensor: ", datos)
-
-cultivo = datos['cultivo']
-finca = datos['finca']
-user = datos['user']
-id_cultivo = datos['id_cultivo']
-
-#GET Cultivo/Umbral info 
-response =requests.get(url_server + 'info/crop/crop/'+ str(id_cultivo),\
-	auth = HTTPBasicAuth('CIDIS-ESPOL', 'c1d1sESPOL2021'))
-
-datos = json.loads(response.content.decode())
-print("GET Cultivo info: ", datos)
-
-min_temperatura = datos["minimo_temperatura"]
-max_temperatura = datos["maximo_temperatura"]
-
-min_humedad = datos["minimo_humedad"]
-max_humedad = datos["maximo_humedad"]
-
-min_precipitacion = datos["minimo_precipitacion"]
-max_precipitacion = datos["maximo_precipitacion"]
-
-min_radiacion = datos["minimo_radiacion"]
-max_radiacion = datos["maximo_radiacion"]
-
-#Setting Coordenadas
 coordenadas = [
 	[-2.059503, -79.903884],
 	[-2.059637, -79.903812],
@@ -64,93 +18,117 @@ coordenadas = [
 	[-2.059589, -79.903920]
 ]
 
-#Arduino config
-'''
-aduino = serial.Serial('/dev/ttyUSB0',9600)
-arduino.flushInput()
-'''
+#InfluxDB config
+influxDB = {
+	'TOKEN' : 'bJdAFfHIRJOehHexyebAYtZ8Q2ED8dibdco_DiMnDIXHC8L8GHIwUp6FAXI-LekxTTQobg_1zz2VLasfqsg2XA==',
+	'URL' :'https://basetsdb-cidis.ngrok.io/',
+	'ORG' : 'ESPOL',
+	'BUCKET' : 'Tester',
+}
 
-#Reading data.csv file
-df = pd.read_csv("data.csv",sep=';')
-#print(df)
+client = InfluxDBClient(
+				url = influxDB['URL'], \
+				token = influxDB['TOKEN'], \
+				ssl_ca_cert = certifi.where()\
+		)
 
-while True:
-	try:
-		for d in range(len(df)):
-			print("Activo, leyendo linea #"+str((d+1))+"...")
-					
-			temperatura = df["temperatura"][d]
-			humedad = df["humedad"][d]
-			numero = df["id sensor"][d]
-			
-			name = "Nodo" + str(numero)
-			latitud = coordenadas[numero][0]
-			longitud = coordenadas[numero][1]
+write_api = client.write_api(write_options = SYNCHRONOUS)
 
-			precipitacion = (random.random() * 1023)
-			radiacion = random.random() * 65000
 
-			timestamp = time_ns()
+#Django server config
+url_server = 'https://server-cidis.ngrok.io/'
 
-			print("\ntemperatura: {}".format(temperatura))
-			print("humedad: {}".format(humedad))
-			print("precipitacion: {}".format(precipitacion))
-			print("radiacion: {}\n".format(radiacion))
 
-			point_temperatura = Point("temperatura")\
-				.tag("planta",cultivo)\
-				.tag("finca",finca)\
-				.tag("id_sensor", name)\
-				.tag("usuario", user)\
-				.field("valor",temperatura)\
-				.field("minimo",min_temperatura)\
-				.field("maximo",max_temperatura)\
-				.field("latitud",latitud)\
-				.field("longitud",longitud)\
-				.time(timestamp, WritePrecision.NS)
+# Functions    
+def get_finca(id_pi: str):
+	response =requests.get(
+		'{}info/sensor/raspberry_umbrales/{}'.format(url_server, id_pi),\
+		auth = HTTPBasicAuth('CIDIS-ESPOL', 'c1d1sESPOL2021')
+	)
 
-			point_humedad = Point("humedad")\
-				.tag("planta",cultivo)\
-				.tag("finca",finca)\
-				.tag("id_sensor", name)\
-				.tag("usuario", user)\
-				.field("valor",humedad)\
-				.field("minimo",min_humedad)\
-				.field("maximo",max_humedad)\
-				.field("latitud",latitud)\
-				.field("longitud",longitud)\
-				.time(timestamp, WritePrecision.NS)
+	datos = json.loads(response.content.decode())
+	print("GET Finca: ", datos)
 
-			point_precipitacion = Point("precipitacion")\
-				.tag("planta",cultivo)\
-				.tag("finca",finca)\
-				.tag("id_sensor", name)\
-				.tag("usuario", user)\
-				.field("valor",precipitacion)\
-				.field("minimo",min_precipitacion)\
-				.field("maximo",max_precipitacion)\
-				.field("latitud",latitud)\
-				.field("longitud",longitud)\
-				.time(timestamp, WritePrecision.NS)
+	return {
+			'finca': datos['finca'], 
+			'cultivo': datos['cultivo'],
+			'user' : datos['user'], 
+			'min_temperatura' : datos["minimo_temperatura"],
+			'max_temperatura' : datos["maximo_temperatura"],
 
-			point_radiacion = Point("radiacion")\
-				.tag("planta",cultivo)\
-				.tag("finca",finca)\
-				.tag("id_sensor", name)\
-				.tag("usuario", user)\
-				.field("valor", radiacion)\
-				.field("minimo",min_radiacion)\
-				.field("maximo",max_radiacion)\
-				.field("latitud",latitud)\
-				.field("longitud",longitud)\
-				.time(timestamp, WritePrecision.NS)
+			'min_humedad' : datos["minimo_humedad"],
+			'max_humedad' : datos["maximo_humedad"],
 
-			write_api.write(bucket, org, point_temperatura)
-			write_api.write(bucket, org, point_humedad)
-			write_api.write(bucket, org, point_precipitacion)
-			write_api.write(bucket, org, point_radiacion)
+			'min_precipitacion' : datos["minimo_precipitacion"],
+			'max_precipitacion' : datos["maximo_precipitacion"],
 
-	except KeyboardInterrupt:
-		print('Received order to stop')
-		break
-    
+			'min_radiacion' : datos["minimo_radiacion"],
+			'max_radiacion' : datos["maximo_radiacion"]
+	}
+
+def read_data_line(df, d): 
+	numero = df["id sensor"][d]
+	timestamp = time_ns()
+	return {
+		'name': "Nodo" + str(numero),
+		'temperatura' : df["temperatura"][d],
+		'humedad' : df["humedad"][d],
+		'precipitacion': (random.random() * 1023),
+		'radiacion' : random.random() * 65000,
+		'latitud' : coordenadas[numero][0],
+		'longitud' : coordenadas[numero][1],
+		'time': timestamp
+	}
+
+def build_point(medida: str, line:dict, finca_data:dict): 
+	
+	return Point(medida)\
+			.tag("planta",finca_data['cultivo'])\
+			.tag("finca",finca_data['finca'],)\
+			.tag("id_sensor", line['name'])\
+			.tag("usuario", finca_data['user'])\
+			.field("valor",line[medida])\
+			.field("minimo",finca_data['min_{}'.format(medida)])\
+			.field("maximo",finca_data['max_{}'.format(medida)])\
+			.field("latitud", line['latitud'])\
+			.field("longitud", line['longitud'])\
+			.time(line['time'], WritePrecision.NS)
+
+def main():
+	id_pi:str = 'TEST-0000001'
+	finca_data:dict = get_finca(id_pi)
+
+	#aduino = serial.Serial('/dev/ttyUSB0',9600)
+	#arduino.flushInput()
+	df = pd.read_csv("data.csv",sep=';')
+
+	while True:
+		try:
+			for d in range(len(df)):
+				print("\nActivo, leyendo linea #"+str((d+1))+"...")
+				
+				line = read_data_line(df, d)
+
+				print("\ntemperatura: {}".format(line['temperatura']))
+				print("humedad: {}".format(line['humedad']))
+				print("precipitacion: {}".format(line['precipitacion']))
+				print("radiacion: {}\n".format(line['radiacion']))
+
+				
+				point_temperatura = build_point('temperatura', line, finca_data)
+				point_humedad = build_point('humedad', line, finca_data)
+				point_precipitacion = build_point('precipitacion', line, finca_data)
+				point_radiacion = build_point('radiacion', line, finca_data)
+
+				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_temperatura)
+				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_humedad)
+				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_precipitacion)
+				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_radiacion)
+				
+				sleep(tiempo)
+				
+		except KeyboardInterrupt:
+			print('Received order to stop')
+			break
+
+main()
