@@ -66,66 +66,90 @@ def get_finca(id_pi: str):
 			'max_radiacion' : datos["maximo_radiacion"]
 	}
 
-def read_data_line(df, d): 
-	numero = df["id sensor"][d]
+def get_indicador(precipitacion:int):
+	if precipitacion >= 0 and precipitacion < 300:
+		return "Está lloviendo con alta intensidad"
+	elif precipitacion >= 300 and precipitacion < 600:
+		return  "Está lloviendo con intensidad moderada"
+	elif precipitacion >= 600 and precipitacion < 800:
+		return "Está lloviendo con baja intensidad"
+	elif precipitacion >= 800 and precipitacion < 900:
+		return "Se encuentra brisando"
+	else:
+		return "No hay lluvia"
+
+def read_data_line(line:str): 
+	data = line.split('-')
+	i = random.randint(0,4)
 	timestamp = time_ns()
+	precipitacion = int(data[4])
 	return {
-		'name': "Nodo" + str(numero),
-		'temperatura' : df["temperatura"][d],
-		'humedad' : df["humedad"][d],
-		'precipitacion': (random.random() * 1023),
-		'radiacion' : random.random() * 65000,
-		'latitud' : coordenadas[numero][0],
-		'longitud' : coordenadas[numero][1],
+		'name': "Nodo" + data[0],
+		'temperatura' : float(data[1]),
+		'humedad' : float(data[2]),
+		'precipitacion': precipitacion,
+		'indicador': get_indicador(precipitacion),
+		'radiacion' : float(data[3]),
+		'latitud' : coordenadas[i][0],
+		'longitud' : coordenadas[i][1],
 		'time': timestamp
 	}
 
-def build_point(medida: str, line:dict, finca_data:dict): 
-	
-	return Point(medida)\
-			.tag("planta",finca_data['cultivo'])\
-			.tag("finca",finca_data['finca'],)\
-			.tag("id_sensor", line['name'])\
-			.tag("usuario", finca_data['user'])\
-			.field("valor",line[medida])\
-			.field("minimo",finca_data['min_{}'.format(medida)])\
-			.field("maximo",finca_data['max_{}'.format(medida)])\
-			.field("latitud", line['latitud'])\
-			.field("longitud", line['longitud'])\
-			.time(line['time'], WritePrecision.NS)
+def build_point(medida: str, data:dict, finca_data:dict): 
 
+	point = Point(medida)\
+			.tag('planta',finca_data['cultivo'])\
+			.tag('finca',finca_data['finca'],)\
+			.tag('id_sensor', data['name'])\
+			.tag('usuario', finca_data['user'])\
+			.field('valor', data[medida])\
+			.field('minimo',finca_data['min_{}'.format(medida)])\
+			.field('maximo',finca_data['max_{}'.format(medida)])\
+			.field('latitud', data['latitud'])\
+			.field('longitud', data['longitud'])\
+			.time(data['time'], WritePrecision.NS)
+
+	if(medida == 'precipitacion'):
+		return point.field('indicador', data['indicador'])
+
+	return point
+	
+	
 def main():
 	id_pi:str = 'TEST-0000001'
 	finca_data:dict = get_finca(id_pi)
 
-	#aduino = serial.Serial('/dev/ttyUSB0',9600)
-	#arduino.flushInput()
-	df = pd.read_csv("data.csv",sep=';')
+	arduino = serial.Serial('/dev/ttyUSB0',9600)
+	arduino.flushInput()
 
 	while True:
 		try:
-			for d in range(len(df)):
-				print("\nActivo, leyendo linea #"+str((d+1))+"...")
-				
-				line = read_data_line(df, d)
+			datos = arduino.readline()
+			linea = datos.decode('latin-1').strip()
+			lineas = linea.split('\n')
 
-				print("\ntemperatura: {}".format(line['temperatura']))
-				print("humedad: {}".format(line['humedad']))
-				print("precipitacion: {}".format(line['precipitacion']))
-				print("radiacion: {}\n".format(line['radiacion']))
+			for line in lineas:
 
-				
-				point_temperatura = build_point('temperatura', line, finca_data)
-				point_humedad = build_point('humedad', line, finca_data)
-				point_precipitacion = build_point('precipitacion', line, finca_data)
-				point_radiacion = build_point('radiacion', line, finca_data)
+				if (len(line) != 0) and (len(line) > 2):
+					print(line)
+					data = read_data_line(line)
 
-				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_temperatura)
-				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_humedad)
-				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_precipitacion)
-				write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_radiacion)
-				
-				sleep(tiempo)
+					print("\ntemperatura: {}".format(data['temperatura']))
+					print("humedad: {}".format(data['humedad']))
+					print("precipitacion: {}".format(data['precipitacion']))
+					print("radiacion: {}\n".format(data['radiacion']))
+
+					point_temperatura = build_point('temperatura', data, finca_data)
+					point_humedad = build_point('humedad', data, finca_data)
+					point_precipitacion = build_point('precipitacion', data, finca_data)
+					point_radiacion = build_point('radiacion', data, finca_data)
+
+					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_temperatura)
+					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_humedad)
+					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_precipitacion)
+					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_radiacion)
+					
+					sleep(tiempo)
 				
 		except KeyboardInterrupt:
 			print('Received order to stop')
