@@ -1,0 +1,10 @@
+[Unit]
+Description = Crop Sensing fetching realtime data
+After = multi-user.target
+
+[Service]
+ExecStart = /usr/bin/python3 /home/lasarang/Desktop/SecondaryConfigs/script.py
+User = lasarang
+
+[Install]
+WantedBy = multi-user.target
