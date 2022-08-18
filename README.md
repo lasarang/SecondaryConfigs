@@ -39,7 +39,7 @@ From the system directory
 
 ```sudo reboot```
 
-Keep in mind that all is already connected to internet
+Keep in mind that all your hardware is already connected to internet
 
 7. Check the status of the service after boot
 
