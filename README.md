@@ -1,7 +1,7 @@
 # SecondaryConfigs
 Configuration scripts
 
-## Build APK
+## Run script.py on startup
 
 1. Clone the repo and open crop_sensing.service file
 
