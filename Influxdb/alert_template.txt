@@ -1,0 +1,19 @@
+import "influxdata/influxdb/monitor"
+import "influxdata/influxdb/v1"
+
+data =
+from(bucket: "Tester")
+|> range(start: -5s)
+|> filter(fn: (r) => r["_measurement"] == "radiacion")
+|> filter(fn: (r) => r["_field"] == "valor" or r["_field"] == "minimo" or r["_field"] == "maximo")
+|> aggregateWindow(every: 5s, fn: mean, createEmpty: false)
+
+option task = {name: "Threshold Radiación", every: 5s, offset: 3s}
+
+check = {_check_id: "09d0f9f4dfed2000", _check_name: "Threshold Radiación", _type: "threshold", tags: {}}
+crit = (r) => r["valor"] < r["minimo"] or r["valor"] > r["maximo"]
+messageFn =
+(r) =>
+"Nivel de ${r._source_measurement} fuera de rango;Revisar finca ${r.finca}, el sensor ${r.id_sensor} tuvo un valor de ${r.valor} LUX"
+
+data |> v1["fieldsAsCols"]() |> monitor["check"](data: check, messageFn: messageFn, crit: crit)
