@@ -1,0 +1,34 @@
+#bin/zsh
+
+sudo grafana-cli plugins install grafana-worldmap-panel
+sudo grafana-cli plugins install grafana-piechart-panel
+sudo grafana-cli plugins install grafana-clock-panel
+sudo grafana-cli plugins install macropower-analytics-panel
+sudo grafana-cli plugins install farski-blendstat-panel
+sudo grafana-cli plugins install yesoreyeram-boomtable-panel
+sudo grafana-cli plugins install digrich-bubblechart-panel
+sudo grafana-cli plugins install speakyourcode-button-panel
+sudo grafana-cli plugins install petrslavotinek-carpetplot-panel
+sudo grafana-cli plugins install jdbranham-diagram-panel
+sudo grafana-cli plugins install natel-discrete-panel
+sudo grafana-cli plugins install marcusolsson-gantt-panel
+sudo grafana-cli plugins install agenty-flowcharting-panel
+sudo grafana-cli plugins install citilogics-geoloop-panel
+sudo grafana-cli plugins install savantly-heatmap-panel
+sudo grafana-cli plugins install mtanda-histogram-panel
+sudo grafana-cli plugins install marcusolsson-hexmap-panel
+sudo grafana-cli plugins install isaozler-paretochart-panel
+sudo grafana-cli plugins install woutervh-mapbox-panel
+sudo grafana-cli plugins install sskgo-perfcurve-panel
+sudo grafana-cli plugins install grafana-polystat-panel
+sudo grafana-cli plugins install ae3e-plotly-panel
+sudo grafana-cli plugins install michaeldmoore-scatter-panel
+sudo grafana-cli plugins install mxswat-separator-panel
+sudo grafana-cli plugins install novatec-sdg-panel
+sudo grafana-cli plugins install marcusolsson-treemap-panel
+sudo grafana-cli plugins install gowee-traceroutemap-panel
+sudo grafana-cli plugins install gretamosa-topology-panel
+sudo grafana-cli plugins install fatcloud-windrose-panel
+sudo grafana-cli plugins install magnesium-wordcloud-panel
+sudo grafana-cli plugins install factry-untimely-panel
+sudo grafana-cli plugins install grafana-image-renderer
