@@ -21,7 +21,8 @@ coordenadas = [
 #InfluxDB config
 influxDB = {
 	'TOKEN' : 'bJdAFfHIRJOehHexyebAYtZ8Q2ED8dibdco_DiMnDIXHC8L8GHIwUp6FAXI-LekxTTQobg_1zz2VLasfqsg2XA==',
-	'URL' :'https://basetsdb-cidis.ngrok.io/',
+	#'URL' :'https://basetsdb-cidis.ngrok.io/',
+	'URL' :'http://200.10.147.120:80/',
 	'ORG' : 'ESPOL',
 	'BUCKET' : 'Tester',
 }
@@ -36,35 +37,51 @@ write_api = client.write_api(write_options = SYNCHRONOUS)
 
 
 #Django server config
-url_server = 'https://server-cidis.ngrok.io/'
-
+#url_server = 'https://server-cidis.ngrok.io/'
+url_server = 'http://localhost:4000/'
 
 # Functions    
-def get_finca(id_pi: str):
+def get_id_finca(id_pi: str):
 	response =requests.get(
 		'{}info/sensor/raspberry_umbrales/{}'.format(url_server, id_pi),\
 		auth = HTTPBasicAuth('CIDIS-ESPOL', 'c1d1sESPOL2021')
 	)
 
 	datos = json.loads(response.content.decode())
-	print("GET Finca: ", datos)
+	#print("GET Finca: {}/n".format(datos))
 
-	return {
-			'finca': datos['finca'], 
-			'cultivo': datos['cultivo'],
-			'user' : datos['user'], 
-			'min_temperatura' : datos["minimo_temperatura"],
-			'max_temperatura' : datos["maximo_temperatura"],
+	return datos['id_finca']
 
-			'min_humedad' : datos["minimo_humedad"],
-			'max_humedad' : datos["maximo_humedad"],
+#Lista de diccionarios con los usuarios 
+def get_users_finca(id_finca: str):
+	response = requests.get(
+		'{}info/crop/user_farms_new?finca={}'.format(url_server, id_finca),\
+		auth = HTTPBasicAuth('CIDIS-ESPOL', 'c1d1sESPOL2021')
+	)
+	datos = json.loads(response.content.decode())
 
-			'min_precipitacion' : datos["minimo_precipitacion"],
-			'max_precipitacion' : datos["maximo_precipitacion"],
+	user_dicts = []
 
-			'min_radiacion' : datos["minimo_radiacion"],
-			'max_radiacion' : datos["maximo_radiacion"]
-	}
+	for data in datos:
+		user_dicts.append(
+			{
+				'finca': data['finca']['nombre'], 
+				'cultivo': data['cultivo'],
+				'user' : data['user']['user_tag'], 
+				'min_temperatura' : data["minimo_temperatura"],
+				'max_temperatura' : data["maximo_temperatura"],
+
+				'min_humedad' : data["minimo_humedad"],
+				'max_humedad' : data["maximo_humedad"],
+
+				'min_precipitacion' : data["minimo_precipitacion"],
+				'max_precipitacion' : data["maximo_precipitacion"],
+
+				'min_radiacion' : data["minimo_radiacion"],
+				'max_radiacion' : data["maximo_radiacion"]
+			}
+		)
+	return user_dicts
 
 def get_indicador(precipitacion:int):
 	if precipitacion >= 0 and precipitacion < 300:
@@ -95,16 +112,16 @@ def read_data_line(line:str):
 		'time': timestamp
 	}
 
-def build_point(medida: str, data:dict, finca_data:dict): 
+def build_point(medida: str, data:dict, user_data:dict): 
 
 	point = Point(medida)\
-			.tag('planta',finca_data['cultivo'])\
-			.tag('finca',finca_data['finca'],)\
+			.tag('planta',user_data['cultivo'])\
+			.tag('finca',user_data['finca'],)\
 			.tag('id_sensor', data['name'])\
-			.tag('usuario', finca_data['user'])\
+			.tag('usuario', user_data['user'])\
 			.field('valor', data[medida])\
-			.field('minimo',finca_data['min_{}'.format(medida)])\
-			.field('maximo',finca_data['max_{}'.format(medida)])\
+			.field('minimo',user_data['min_{}'.format(medida)])\
+			.field('maximo',user_data['max_{}'.format(medida)])\
 			.field('latitud', data['latitud'])\
 			.field('longitud', data['longitud'])\
 			.time(data['time'], WritePrecision.NS)
@@ -117,7 +134,9 @@ def build_point(medida: str, data:dict, finca_data:dict):
 	
 def main():
 	id_pi:str = 'TEST-0000001'
-	finca_data:dict = get_finca(id_pi)
+	id_finca:str = get_id_finca(id_pi)
+	users_dicts = get_users_finca(id_finca)
+	print('{}/n'.format(users_dicts))
 
 	arduino = serial.Serial('/dev/ttyUSB0',9600)
 	arduino.flushInput()
@@ -139,17 +158,17 @@ def main():
 					print("precipitacion: {}".format(data['precipitacion']))
 					print("radiacion: {}\n".format(data['radiacion']))
 
-					point_temperatura = build_point('temperatura', data, finca_data)
-					point_humedad = build_point('humedad', data, finca_data)
-					point_precipitacion = build_point('precipitacion', data, finca_data)
-					point_radiacion = build_point('radiacion', data, finca_data)
+					for user in users_dicts:
+						point_temperatura = build_point('temperatura', data, user)
+						point_humedad = build_point('humedad', data, user)
+						point_precipitacion = build_point('precipitacion', data, user)
+						point_radiacion = build_point('radiacion', data, user)
 
-					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_temperatura)
-					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_humedad)
-					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_precipitacion)
-					write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_radiacion)
-					
-					sleep(tiempo)
+						write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_temperatura)
+						write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_humedad)
+						write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_precipitacion)
+						write_api.write(influxDB['BUCKET'], influxDB['ORG'], point_radiacion)
+						sleep(tiempo)
 				
 		except KeyboardInterrupt:
 			print('Received order to stop')
